@@ -1,0 +1,367 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Teachers Page</title>
+    <!--StAuth10065: I Kashyap Thakkar, 000742712 certify that this material is my original work. No other person's work has been used without due acknowledgement. I have not made my work available to anyone else.-->
+    <style>
+     #timer{
+       text-align: center;
+     }
+     .slider {
+      width: 100%;
+      height: 16px;
+      border-radius: 5px;
+      background: #d3d3d3;
+    }
+    .slider::-moz-range-thumb {
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: indigo;
+      cursor: pointer;
+    }
+    #submitButton, #nextButton {
+      background-color: indigo;
+      width: 100%;
+      color: white;
+      padding: 15px 32px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 20px;
+      border-radius: 5px;
+    }
+    #submitButton:hover, #addOption:hover, #nextButton:hover{
+      box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24),0 17px 50px 0 rgba(0,0,0,0.19);
+    }
+    #score{
+      width: 100%;
+      border-radius: 5px;
+      background: #d3d3d3;
+      font-size: 16px;
+      text-align: center;
+    }
+    #questionType{
+      width: 100%;
+      border-radius: 5px;
+      background: #d3d3d3;
+      font-size: 16px;
+      text-align: center;
+    }
+    #multiple_question{
+      width: 100%;
+      border-radius: 5px;
+      background: #d3d3d3;
+      font-size: 16px;
+    }
+    .option{
+      width: 80%;
+      border-radius: 5px;
+      background: #d3d3d3;
+      font-size: 16px;
+    }
+    .checkbox{
+      transform: scale(1.5);
+      border-radius: 4px;
+    }
+    .pairs{
+      text-align: center;
+      width: 40%;
+      border-radius: 5px;
+      background: #d3d3d3;
+      font-size: 16px;
+    }
+    form{
+      margin: 0 10%;
+    }
+    a{
+      background-color: indigo;
+      color: white;
+      padding: 14px 25px;
+      text-align: center;
+      display: inline-block;
+      cursor: pointer;
+      
+    }
+    </style>
+  </head>
+  
+  <body>
+    <div id="not_submitted">
+        <form action="">
+
+          <h3>Set a time limit for the question:</h3>          
+          <input type="range" min="10" step="5" max="90" class="slider" id="myRange">
+          <p>Time: <span id="limit"></span></p>
+          
+          <h3>Score associated with this question:</h3>
+          <input type="number" min="0" id="score" value="100">
+          
+          <h3>Select the question type:</h3>
+          <select id="questionType">
+              <option value="multiple">Multiple Choice Question</option>
+              <option value="matching">Matching Question</option>
+          </select>
+
+          <div id="multiple_question_div">
+              <h3>Specify your question here:</h3>
+              <input type="text" id="multiple_question" placeholder="Type your Question">
+
+              <h3>Add options and mark the option thich is correct:</h3>
+              <div id="options">
+                  <input type="checkbox" class="checkbox" id="option1CB">
+                  <input type="text" id="option1" placeholder="Option1" class="option">
+                  <br/><br/>
+                  <input type="checkbox" class="checkbox" id="option2CB">
+                  <input type="text" id="option2" placeholder="Option2" class="option">
+                  <br/><br/>
+
+              </div>
+              <a id="addOption">Add new Option</a>
+          </div>
+
+          <div id="matching_question_div">
+              <h3>Describe your question here:</h3>
+              <textarea id="matching_question_desc" class="option"></textarea>
+
+              <h3>Specify your matching pairs here:</h3>
+              <div id="matches">
+                  <input type="text" id="matching_question1" class="pairs">
+                  <input type="text" id="matching_option1" class="pairs">
+                  <br/><br/>
+                  
+                  <input type="text" id="matching_question2" class="pairs">
+                  <input type="text" id="matching_option2" class="pairs">
+                  <br/><br/>
+                  
+              </div>
+              <a id="addPair">Add new Pair</a>
+          </div>
+          <button id="submitButton">Submit</button>
+        </form>
+    </div>
+    
+    <div id="submitted">
+      <h1 id="timer"></h1>
+      <div id="resultArea">
+        <p id="nAnswers" style="font-size: 25px;"></p>
+        <p id="nCorrect" style="font-size: 25px;"></p>
+        <p id="average" style="font-size: 25px;"></p>
+        <p id="correctListText" style="font-size: 25px; text-align: center;">Students with correct answers:</p>
+        <ul id="correctList" style="font-size: 25px;">
+          
+        </ul>
+        <br/><br/>
+        <p id="wrongListText" style="font-size: 25px; text-align: center;">Students with wrong answers:</p>
+        <ul id="wrongList" style="font-size: 25px;">
+
+        </ul>
+        <br/><br/>
+        <p id="scoreListText" style="font-size: 25px; text-align: center;">Student scores:</p>
+        <ul id="scoreList" style="font-size: 25px;">
+
+        </ul>
+
+      </div>
+      <button id="nextButton">Next</button>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script> 
+      var answersRecieved = 0;
+      var correctAnswers = 0;
+      var percentage = 0;
+      var optNumber = 3;
+      var scoreList = {};
+
+      $("#submitted").hide();
+      $('#wrongListText').hide();
+      $('#correctListText').hide();
+      $('#scoreListText').hide();      
+      if($("#questionType").val() == "multiple"){
+        $("#multiple_question_div").show();
+        $("#matching_question_div").hide();
+      }else if($("#questionType").val() == "matching"){
+        $("#multiple_question_div").hide();
+        $("#matching_question_div").show();
+      }
+      
+
+      var slider = document.getElementById("myRange");
+      var output = document.getElementById("limit");
+      
+      output.innerHTML = slider.value + "s";
+      
+      slider.oninput = function() {
+        output.innerHTML = this.value + "s";
+      } 
+
+      $("#questionType").change(function(){
+
+        if($("#questionType").val() == "multiple"){
+          $("#multiple_question_div").show();
+          $("#matching_question_div").hide();
+          optNumber = 3;
+        }
+        if($("#questionType").val() == "matching"){
+          $("#multiple_question_div").hide();
+          $("#matching_question_div").show();
+          optNumber = 3;
+        }
+      });
+
+      $("#addPair").click(function(){
+        
+        $("#matches").append("<input type='text' class='pairs' id='matching_question" + optNumber +"'> <input type='text' id='matching_option" + optNumber +"' class='pairs'><br/><br/>");
+        optNumber++;
+      });
+
+      $("#addOption").click(function(){
+        
+        $("#options").append("<input type='checkbox' class='checkbox' id='option" + optNumber +"CB'> <input type='text' id='option" + optNumber +"' placeholder='Option" + optNumber +"' class='option'><br/><br/>");
+        optNumber++;
+      });
+
+    
+
+      $("#submitButton").click(function(){
+        
+        $("#nextButton").hide();
+        $("#not_submitted").hide();
+        $("#submitted").show();
+        
+        var timeleft = slider.value;
+        document.getElementById("timer").innerHTML = timeleft + " seconds remaining";
+        timeleft -= 1;
+        var timer = setInterval(function(){
+          document.getElementById("timer").innerHTML = timeleft + " seconds remaining";
+          timeleft -= 1;
+          if(timeleft < 0){
+            clearInterval(timer);
+            $("#nextButton").show();
+            
+          }
+        }, 1000);
+      });
+      $("#nextButton").click(function(){
+        answersRecieved = 0;
+        correctAnswers = 0;
+        percentage = 0;
+
+     
+        $("#submitted").hide();
+        $("#not_submitted").show();
+        $("#nAnswers").html("");
+        $("#nCorrect").html("");
+        $("#average").html("");
+        $('#scoreList').html("");
+        $('#correctList').html("");
+        $('#wrongList').html("");
+        $('#wrongListText').hide();
+        $('#correctListText').hide();
+        $('#scoreListText').hide();
+      });
+
+      var socket = io();      
+      $("form").submit(function() {
+        optNumber--;
+        var number = 3;
+        if($("#questionType").val() == "multiple"){
+          var options = [
+            $("#option1").val(),
+            $("#option2").val()
+        ]
+
+          var answers = [
+            $("#option1CB").is(':checked'),
+            $("#option2CB").is(':checked')
+        ]
+
+          while(number <= optNumber){
+            
+            var value = "#" + "option" + number;
+            options.push($(value).val());
+
+            var value2 = value + "CB";
+            answers.push($(value2).is(':checked'));
+            number++;
+          }
+      
+          var questionData = {
+            "time": slider.value,
+            "score": $("#score").val(),
+            "questionType":"multiple",
+            "question": $("#multiple_question").val(),
+            "options" : options,
+            "answers" : answers
+          }
+        }else{
+          var leftSide = [
+              $("#matching_question1").val(),
+              $("#matching_question2").val()
+          ]
+
+            var rightSide = [
+              $("#matching_option1").val(),
+              $("#matching_option2").val()
+          ]
+
+            while(number <= optNumber){
+              
+              var value = "#" + "matching_question" + number;
+              leftSide.push($(value).val());
+
+              var value2 = "#" + "matching_option" + number;
+              rightSide.push($(value2).val());
+              number++;
+            }
+          var questionData = {
+            "time": slider.value,
+            "score": $("#score").val(),
+            "questionType":"matching",
+            "question": $("#matching_question_desc").val(),
+            "leftSide" : leftSide,
+            "rightSide" : rightSide
+          }
+        }
+        console.log(questionData);
+        socket.emit('question submit', questionData);            
+          return false;      
+        });      
+      socket.on('answer submit', function(data) {
+        $('#wrongListText').show();
+        $('#correctListText').show();
+        $('#scoreListText').show();
+        scoreList[data.name] = data.score;
+        answersRecieved++;
+        if(data.result){
+          correctAnswers++;
+        }
+        average = (correctAnswers/answersRecieved) * 100;
+
+        $("#nAnswers").html("Number of answers received: " + answersRecieved);
+        $("#nCorrect").html("Number of correct answers received: " + correctAnswers);
+        $("#average").html("Percentage of answers that are correct: " + average);
+        if(data.result){
+          $('#correctList').append($('<li>').text(data.name));
+        }else{
+          $('#wrongList').append($('<li>').text(data.name));
+        }
+        $('#scoreList').html("");
+        var sortable = [];
+        for (var score in scoreList) {
+            sortable.push([score, scoreList[score]]);
+        }
+        sortable.sort(function(a, b) {
+            return a[1] - b[1];
+        });
+        sortable.reverse();
+        for(var i=0; i < sortable.length; i++){
+          $('#scoreList').append($('<li>').text(sortable[i][0] + ": " + sortable[i][1]));
+        }
+        
+          
+      });    
+    </script>
+    
+  </body>
+</html>

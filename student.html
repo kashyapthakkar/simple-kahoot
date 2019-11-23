@@ -1,0 +1,290 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Students Page</title>
+    <!--StAuth10065: I Kashyap Thakkar, 000742712 certify that this material is my original work. No other person's work has been used without due acknowledgement. I have not made my work available to anyone else.-->
+    <style>
+        body{
+            margin: 0 10%;
+        }
+        #name{
+            text-align: center;
+            width: 100%;
+            border-radius: 5px;
+            background: #d3d3d3;
+            font-size: 20px;
+        }
+        button{
+            background-color: indigo;
+            width: 100%;
+            color: white;
+            padding: 15px 32px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        button:hover{
+            box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24),0 17px 50px 0 rgba(0,0,0,0.19);
+        }
+        .option{
+            font-size: 25px;
+        }
+        .dropdown{
+            width: 50%;
+            border-radius: 5px;
+            background: #d3d3d3;
+            font-size: 16px;
+            text-align: right;;
+            margin-right: 0;
+        }
+        .label{
+            width: 50%;
+            font-size: 16px;
+            text-align: center;
+        }
+    </style>
+  </head>
+  <body>
+    <div id="nameDiv">
+        <h2>Please enter your name to continue:</h2>
+        <input type="text" id="name" placeholder="Enter your name">
+        <br/><br/>
+        <button id="nameButton">Continue</button>
+    </div>
+    <div id="waitingArea">
+        <p style="font-size: 35px;">Waiting for a question...</p>
+        <p style="font-size: 30px; text-align: center;">Student Scores</p>
+        <ul id="studentScores" style="font-size: 25px;">
+            
+        </ul>
+    </div>
+    <div id="questionArea">
+        
+            <h1 style='text-align: center;' id="timer"></h1>
+                <span id="points" style='font-size: 30px; text-align: right;'></span>
+                <br/><br/>
+                <span id="question" style='font-size: 35px;'></span>
+                <br/>
+                <hr/>
+                <div id="options">
+                    
+                </div>
+                <button id="answerButton">submit</button>
+      
+        
+    </div>
+    <div id="resultArea">
+        <p id="result" style="font-size: 40px; text-align: center;"></p>
+        <p id="score" style="font-size: 40px;"></p>
+        <span id="correctQuestion" style='font-size: 35px;'></span>
+        <div id="correctAnswers">
+            
+
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script> 
+        $("#waitingArea").hide();
+        $("#questionArea").hide();
+        $("#resultArea").hide();
+        var name = "";
+        var score = 0;
+        var nOptions = 0;
+        var questionData = {};
+        var scoreList = {};
+
+        $("#nameButton").click(function(){
+            if($("#name").val() == ""){
+                alert("Please enter your name to continue...");
+            }else{
+                name = $("#name").val();
+                $("#waitingArea").show();
+                $("#nameDiv").hide();
+            }
+        })
+
+        function shuffle(array) {
+            for (var i = array.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var k = array[i];
+                array[i] = array[j];
+                array[j] = k;
+            }
+            return array;
+        }
+        
+
+        var socket = io();      
+        
+        socket.on('question submit', function(msg) {
+          
+            $('#studentScores').html("");
+
+            if(name != ""){
+                questionData = msg;
+                $("#options").html("");
+                $("#waitingArea").hide();
+                $("#questionArea").show();
+                var timeleft = msg.time;
+                document.getElementById("timer").innerHTML = timeleft + " seconds remaining";
+                timeleft -= 1;
+                
+                var timer = setInterval(function(){
+                     
+                    document.getElementById("timer").innerHTML = timeleft + " seconds remaining";
+                    timeleft -= 1;
+                    if(timeleft < 0){
+
+                        $("#questionArea").hide();
+                        $("#resultArea").hide();
+                        $("#waitingArea").show();
+                        clearInterval(timer);   
+                    }
+                }, 1000);
+                
+                
+                if(msg.questionType == "multiple"){
+                    nOptions = Object.keys(msg.options).length
+                    $("#points").html("Points: " + msg.score);
+                    $("#question").html(msg.question);
+                    for(var i=0; i < nOptions; i++){
+                        $("#options").append("<input type='checkbox' id='"+ (i+1) +"' style='transform: scale(1.5);' class='checkbox'> <span class='option'>"+ msg.options[i] +"</span><br/>");
+                        
+                    }           
+                }else{
+                    nOptions = Object.keys(msg.leftSide).length
+                    var string = "";
+                    var tempArray = [];
+                    for(var i=0; i < nOptions; i++){
+                        tempArray.push(msg.rightSide[i]);
+                    }
+                    shuffle(tempArray);
+                    for(var i=0; i < nOptions; i++){
+                        string += "<option value='"+ tempArray[i] +"'>"+ tempArray[i] +"</option>";
+                    }
+                    $("#points").html("Points: " + msg.score);
+                    $("#question").html(msg.question);
+                    for(var i=0; i < nOptions; i++){
+                        $("#options").append("<span class='label'> "+ msg.leftSide[i] +" </span><select  id='"+ (i+1) +"'  class='dropdown'>"+ string +"</select><br/><br/><br/>");
+                    } 
+                }
+                
+            }
+
+        });    
+        socket.on('answer submit', function(data) {
+            $('#studentScores').html("");
+            scoreList[data.name] = data.score;
+            var sortable = [];
+            for (var score in scoreList) {
+                sortable.push([score, scoreList[score]]);
+            }
+            sortable.sort(function(a, b) {
+                return a[1] - b[1];
+            });
+            sortable.reverse();
+            for(var i=0; i < sortable.length; i++){
+                $('#studentScores').append($('<li>').text(sortable[i][0] + ": " + sortable[i][1]));
+            }
+        });
+        $("#answerButton").click(function(){
+
+                    $("#questionArea").hide();
+                    $("#resultArea").show();
+                    if(questionData.questionType == "multiple"){
+                        var answers = [];
+                        for(var i=0; i < nOptions; i++){
+                            var id = "#" + (i+1);
+                            if($(id).is(':checked')){
+                                answers.push(true);
+                            }else{
+                                answers.push(false);
+                            }
+                        }    
+
+                        var flag = true;
+                        for(var i=0; i < nOptions; i++){
+                            if(answers[i] != questionData.answers[i]){
+                                flag = false;
+                            }
+                        }
+                        var currentResult;
+                        if(flag){
+                            score += parseInt(questionData.score);
+                            $("#score").html("Points gained: " + questionData.score + "<br/> Total: " + score);
+                            $("#result").html("Correct");
+                            $("#correctQuestion").html("");
+                            $("#correctAnswers").html("");
+                            currentResult = true;
+                        }else{
+                            $("#correctAnswers").html("");
+                            $("#score").html("Points gained: " + 0 + "<br/> Total: " + score);
+                            $("#result").html("Wrong Answer");
+                            $("#correctQuestion").html(questionData.question);
+                            currentResult = false;
+                            for(var i=0; i < nOptions; i++){
+                                if(questionData.answers[i]){
+                                    $("#correctAnswers").append("<input type='checkbox' style='transform: scale(1.5);' class='checkbox' checked='checked' disabled> <span class='option'>"+ questionData.options[i] +"</span><br/>");
+                                }else{
+                                    $("#correctAnswers").append("<input type='checkbox' style='transform: scale(1.5);' class='checkbox' disabled> <span class='option'>"+ questionData.options[i] +"</span><br/>");
+                                }
+                                    
+                            }   
+                        } 
+                        var answerData = {
+                            "name": name,
+                            "score": score,
+                            "result": currentResult
+                        }
+                    }else{
+                        var answers = [];
+                        for(var i=0; i < nOptions; i++){
+                            answers.push(questionData.rightSide[i]);
+                        }
+                        var userAnswer = [];
+                        for(var i=0; i < nOptions; i++){
+                            var id = "#" + (i+1);
+                            userAnswer.push($(id).val());
+                        }    
+
+                        var flag = true;
+                        for(var i=0; i < nOptions; i++){
+                            if(answers[i] != userAnswer[i]){
+                                flag = false;
+                            }
+                        }
+                        var currentResult;
+                        if(flag){
+                            score += parseInt(questionData.score);
+                            $("#score").html("Total: " + score);
+                            $("#result").html("Correct");
+                            $("#correctQuestion").html("");
+                            $("#correctAnswers").html("");
+                            currentResult = true;
+                        }else{
+                            $("#correctAnswers").html("");
+                            $("#score").html("Total: " + score);
+                            $("#result").html("Wrong Answer");
+                            $("#correctQuestion").html(questionData.question + "<hr/>");
+                            currentResult = false;
+                            for(var i=0; i < nOptions; i++){
+                                $("#correctAnswers").append("<span style='font-size: 25px;' class='label'> "+ questionData.leftSide[i] +" = </span><span style='font-size: 25px;' class='label'> "+ questionData.rightSide[i] +" </span><br/><br/><br/>");
+                                    
+                            }   
+                        } 
+                        var answerData = {
+                            "name": name,
+                            "score": score,
+                            "result": currentResult
+                        }
+                    }
+                    
+                    socket.emit('answer submit', answerData);
+                    return false;    
+                });
+    </script>
+  </body>
+</html>
